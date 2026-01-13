@@ -2468,11 +2468,11 @@
       const aiAvatarEl = document.getElementById('total-ai-avatar');
       if (userAvatarEl) {
         userAvatarEl.innerHTML = (appSettings && appSettings.userAvatar)
-          ? `<img src="${appSettings.userAvatar}">` : '🧸';
+          ? `<img src="${appSettings.userAvatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : '🧸';
       }
       if (aiAvatarEl) {
         aiAvatarEl.innerHTML = (appSettings && appSettings.aiAvatar)
-          ? `<img src="${appSettings.aiAvatar}">` : '🤖';
+          ? `<img src="${appSettings.aiAvatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : '🤖';
       }
 
       // 计算统计数据
