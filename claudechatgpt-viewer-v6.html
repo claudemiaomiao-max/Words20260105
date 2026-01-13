@@ -1838,8 +1838,13 @@
     function parseClaudeMessages(convData) {
       const messages = [];
       const chatMessages = convData.chat_messages || [];
-      // 获取对话级别的模型信息
-      const convModel = convData.model || null;
+      // 获取对话级别的模型信息（检查多个可能的字段位置）
+      // Claude导出格式中model可能在: model, model_id, current_model, settings.model等
+      const convModel = convData.model || convData.model_id || convData.current_model ||
+        convData.default_model || convData.selected_model ||
+        (convData.settings && (convData.settings.model || convData.settings.model_id)) ||
+        (convData.project && convData.project.model) ||
+        (convData.metadata && convData.metadata.model) || null;
 
       chatMessages.forEach(msg => {
         const role = msg.sender === 'human' ? 'user' : 'assistant';
@@ -1871,9 +1876,10 @@
         }
 
         // 获取模型信息：优先使用消息级别，其次对话级别
+        // 如果没有找到模型信息则为null（不显示标签）
         let model = null;
         if (role === 'assistant') {
-          model = msg.model || convModel || 'claude';
+          model = msg.model || msg.model_id || msg.model_slug || convModel || null;
         }
 
         messages.push({
@@ -2813,15 +2819,24 @@
     function renderTotalStats() {
       const userName = (appSettings && appSettings.userName) ? appSettings.userName : '用户';
       const aiName = (appSettings && appSettings.aiName) ? appSettings.aiName : '助手';
-      const userAvatar = (appSettings && appSettings.userAvatar) ? appSettings.userAvatar : '🧸';
-      const aiAvatar = (appSettings && appSettings.aiAvatar) ? appSettings.aiAvatar : '🤖';
+      const userAvatarSrc = appSettings && appSettings.userAvatar;
+      const aiAvatarSrc = appSettings && appSettings.aiAvatar;
 
       // 更新头像和名称
       const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+      const setAvatar = (id, src, fallback) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (src && (src.startsWith('data:') || src.startsWith('http'))) {
+          el.innerHTML = `<img src="${src}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+        } else {
+          el.textContent = fallback;
+        }
+      };
       setVal('total-user-name', userName);
       setVal('total-ai-name', aiName);
-      setVal('total-user-avatar', userAvatar);
-      setVal('total-ai-avatar', aiAvatar);
+      setAvatar('total-user-avatar', userAvatarSrc, '🧸');
+      setAvatar('total-ai-avatar', aiAvatarSrc, '🤖');
 
       // 根据数据源筛选统计消息
       const msgData = currentSourceFilter === 'all' ? messagesByDate : filteredMessagesByDate;
