@@ -583,6 +583,58 @@
     .stat-card { background: var(--bg-card); border-radius: 12px; padding: 16px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
     .stat-card .stat-value { font-size: 1.5rem; font-weight: 600; color: var(--primary-dark); }
     .stat-card .stat-label { font-size: var(--font-size-small); color: var(--text-light); margin-top: 4px; }
+
+    /* 总数据统计对比卡片 - 错位布局 */
+    .total-stats-section { margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--border); position: relative; min-height: 180px; }
+    .total-stats-card {
+      width: 65%;
+      background: var(--bg-card);
+      border-radius: 16px;
+      padding: 14px 16px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      position: relative;
+    }
+    .total-stats-card.assistant {
+      margin-left: 0;
+      margin-right: auto;
+      flex-direction: row;
+    }
+    .total-stats-card.user {
+      margin-left: auto;
+      margin-right: 0;
+      margin-top: 16px;
+      flex-direction: row-reverse;
+    }
+    .total-stats-header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .total-stats-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      background: var(--bg);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .total-stats-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+    .total-stats-name { font-size: 0.75rem; font-weight: 600; color: var(--text); margin-top: 6px; text-align: center; }
+    .total-stats-data { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+    .total-stats-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 10px; background: var(--bg); border-radius: 8px; }
+    .total-stats-row .label { font-size: 0.7rem; color: var(--text-light); }
+    .total-stats-row .value { font-size: 0.8rem; font-weight: 600; color: var(--primary-dark); }
+    @media (max-width: 400px) {
+      .total-stats-card { width: 85%; }
+    }
+
     /* 聊天总览区域 */
     .chat-overview-section { margin-top: 20px; }
     .overview-summary { background: var(--bg-card); border-radius: 16px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 16px; }
@@ -938,6 +990,31 @@
       <div class="chat-overview-section">
         <div class="overview-summary" id="overview-summary">
           <p class="overview-text" id="overview-text">加载中...</p>
+          <!-- 总数据统计卡片 -->
+          <div class="total-stats-section" id="total-stats-section">
+            <div class="total-stats-card assistant">
+              <div class="total-stats-header">
+                <div class="total-stats-avatar" id="total-ai-avatar">🤖</div>
+                <div class="total-stats-name" id="total-ai-name">助手</div>
+              </div>
+              <div class="total-stats-data">
+                <div class="total-stats-row"><span class="label">总字数</span><span class="value" id="total-ai-words">0 字</span></div>
+                <div class="total-stats-row"><span class="label">消息数</span><span class="value" id="total-ai-msgs">0 条</span></div>
+                <div class="total-stats-row"><span class="label">平均每条</span><span class="value" id="total-ai-avg">0 字</span></div>
+              </div>
+            </div>
+            <div class="total-stats-card user">
+              <div class="total-stats-header">
+                <div class="total-stats-avatar" id="total-user-avatar">🧸</div>
+                <div class="total-stats-name" id="total-user-name">用户</div>
+              </div>
+              <div class="total-stats-data">
+                <div class="total-stats-row"><span class="label">总字数</span><span class="value" id="total-user-words">0 字</span></div>
+                <div class="total-stats-row"><span class="label">消息数</span><span class="value" id="total-user-msgs">0 条</span></div>
+                <div class="total-stats-row"><span class="label">平均每条</span><span class="value" id="total-user-avg">0 字</span></div>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="overview-actions">
           <div class="random-moment-wrapper">
@@ -1257,6 +1334,7 @@
       if (appSettings.fontSize === 'medium') document.body.removeAttribute('data-fontsize'); else document.body.setAttribute('data-fontsize', appSettings.fontSize);
       applyPattern();
       updateHeaderLogo(); updatePageTitle();
+      if (typeof renderTotalStats === 'function') renderTotalStats();
     }
     
     function applyPattern() {
@@ -2648,6 +2726,7 @@
     // 聊天总览渲染
     function renderOverview() {
       renderOverviewSummary();
+      renderTotalStats();
       renderTopDays();
       renderTopConversations();
     }
@@ -2729,7 +2808,49 @@
       
       textEl.innerHTML = `我们从 <span class="highlight-num">${firstDateStr}</span> 聊到 <span class="highlight-num">${lastDateStr}</span>，共同走过了 <span class="highlight-num">${totalDays}</span> 天。<br>这期间，有 <span class="highlight-num">${chatDays}</span> 天都有我们的对话，每个活跃日平均要说上 <span class="highlight-num">${avgWordsPerDay.toLocaleString()}</span> 字。<br>我们最喜欢在 <span class="highlight-num">${peakTimeStr}</span> 谈话，那段时光占据了所有对话的 <span class="highlight-num">${peakPercent}%</span>。<br>最长的一次，我们连续聊了 <span class="highlight-num">${maxStreak}</span> 天都没有停下。`;
     }
-    
+
+    // 渲染总数据统计卡片（支持数据源筛选）
+    function renderTotalStats() {
+      const userName = (appSettings && appSettings.userName) ? appSettings.userName : '用户';
+      const aiName = (appSettings && appSettings.aiName) ? appSettings.aiName : '助手';
+      const userAvatar = (appSettings && appSettings.userAvatar) ? appSettings.userAvatar : '🧸';
+      const aiAvatar = (appSettings && appSettings.aiAvatar) ? appSettings.aiAvatar : '🤖';
+
+      // 更新头像和名称
+      const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+      setVal('total-user-name', userName);
+      setVal('total-ai-name', aiName);
+      setVal('total-user-avatar', userAvatar);
+      setVal('total-ai-avatar', aiAvatar);
+
+      // 根据数据源筛选统计消息
+      const msgData = currentSourceFilter === 'all' ? messagesByDate : filteredMessagesByDate;
+      const targetMessages = Object.values(msgData).flat();
+
+      let userWords = 0, aiWords = 0, userMsgs = 0, aiMsgs = 0;
+      targetMessages.forEach(msg => {
+        if (msg.type && msg.type !== 'normal') return;
+        const words = msg.content ? msg.content.length : 0;
+        if (msg.role === 'user') {
+          userWords += words;
+          userMsgs++;
+        } else if (msg.role === 'assistant') {
+          aiWords += words;
+          aiMsgs++;
+        }
+      });
+
+      const userAvg = userMsgs > 0 ? Math.round(userWords / userMsgs) : 0;
+      const aiAvg = aiMsgs > 0 ? Math.round(aiWords / aiMsgs) : 0;
+
+      setVal('total-user-words', userWords.toLocaleString() + ' 字');
+      setVal('total-user-msgs', userMsgs.toLocaleString() + ' 条');
+      setVal('total-user-avg', userAvg.toLocaleString() + ' 字');
+      setVal('total-ai-words', aiWords.toLocaleString() + ' 字');
+      setVal('total-ai-msgs', aiMsgs.toLocaleString() + ' 条');
+      setVal('total-ai-avg', aiAvg.toLocaleString() + ' 字');
+    }
+
     function renderTopDays() {
       const container = document.getElementById('top-days-list');
       if (!container) return;
