@@ -4987,18 +4987,20 @@
             event.target.value = ''; // 清空input以便重复选择
         }
 
-        // 图片压缩函数（最大尺寸1920px，质量0.85）
-        function compressImage(file, maxSize = 1920, quality = 0.85) {
+        // 图片压缩函数（自适应压缩，目标大小500KB以内）
+        function compressImage(file, maxSize = 1600, quality = 0.8) {
             return new Promise((resolve, reject) => {
                 const img = new Image();
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
                 const objectUrl = URL.createObjectURL(file);
+                const TARGET_SIZE = 500 * 1024; // 目标500KB
 
                 img.onload = () => {
-                    let { width, height } = img;
-                    const originalWidth = width;
-                    const originalHeight = height;
+                    const originalWidth = img.width;
+                    const originalHeight = img.height;
+                    let width = img.width;
+                    let height = img.height;
 
                     // 计算缩放比例（保持最长边不超过maxSize）
                     if (width > maxSize || height > maxSize) {
@@ -5015,14 +5017,34 @@
                     canvas.height = height;
                     ctx.drawImage(img, 0, 0, width, height);
 
-                    // 转换为JPEG格式（压缩率更好）
-                    const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+                    // 第一次压缩
+                    let compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+                    let compressedSize = Math.round(compressedDataUrl.length * 0.75);
+
+                    // 如果还是太大，逐步降低质量再压缩
+                    let currentQuality = quality;
+                    while (compressedSize > TARGET_SIZE && currentQuality > 0.3) {
+                        currentQuality -= 0.1;
+                        compressedDataUrl = canvas.toDataURL('image/jpeg', currentQuality);
+                        compressedSize = Math.round(compressedDataUrl.length * 0.75);
+                    }
+
+                    // 如果降低质量还不够，缩小尺寸
+                    if (compressedSize > TARGET_SIZE && (width > 1200 || height > 1200)) {
+                        const scale = 0.7;
+                        width = Math.round(width * scale);
+                        height = Math.round(height * scale);
+                        canvas.width = width;
+                        canvas.height = height;
+                        ctx.drawImage(img, 0, 0, width, height);
+                        compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                        compressedSize = Math.round(compressedDataUrl.length * 0.75);
+                    }
 
                     const originalSize = file.size;
-                    const compressedSize = Math.round(compressedDataUrl.length * 0.75);
-                    console.log(`图片压缩: ${(originalSize/1024/1024).toFixed(2)}MB → ${(compressedSize/1024/1024).toFixed(2)}MB (${originalWidth}x${originalHeight} → ${width}x${height})`);
+                    console.log(`图片压缩: ${(originalSize/1024/1024).toFixed(2)}MB → ${(compressedSize/1024/1024).toFixed(2)}MB (${originalWidth}x${originalHeight} → ${width}x${height}, 质量${Math.round(currentQuality*100)}%)`);
 
-                    URL.revokeObjectURL(objectUrl); // 释放内存
+                    URL.revokeObjectURL(objectUrl);
                     resolve(compressedDataUrl);
                 };
 
